@@ -12,17 +12,17 @@ This app simulates the absorption profile of a 3-level $\Lambda$ system.
 A strong **control beam** ($\Omega_c$) creates a transparency window for a weak **probe beam** ($\Omega_p$).
 """)
 
-# --- Sidebar Inputs ---
+# --- Sidebar Inputs (Numerical Input Fields) ---
 st.sidebar.header("System Parameters")
-Gamma = st.sidebar.number_input(r"Decay Rate Γ (MHz)", value=5.0)
-Is = st.sidebar.number_input(r"Saturation Intensity Is (mW/cm²)", value=1.0)
-gamma21 = st.sidebar.slider(r"Dephasing Rate γ21 (MHz)", 0.0, 1.0, 0.05, step=0.01)
-L_alpha0 = st.sidebar.slider("Peak Optical Depth (Lα₀)", 1.0, 20.0, 10.0)
+Gamma = st.sidebar.number_input(r"Decay Rate Γ (MHz)", value=5.0, step=0.1, format="%.2f")
+Is = st.sidebar.number_input(r"Saturation Intensity Is (mW/cm²)", value=1.0, step=0.1, format="%.2f")
+gamma21 = st.sidebar.number_input(r"Dephasing Rate γ21 (MHz)", value=0.05, step=0.01, format="%.3f")
+L_alpha0 = st.sidebar.number_input("Peak Optical Depth (Lα₀)", value=10.0, step=0.5, format="%.1f")
 
 st.sidebar.header("Beam Controls")
-Ic = st.sidebar.slider(r"Control Intensity Ic (mW/cm²)", 0.0, 100.0, 15.0)
-detuning_c = st.sidebar.slider(r"Control Detuning Δc (MHz)", -10.0, 10.0, 0.0)
-scan_range = st.sidebar.slider("Scan Range (MHz)", 10.0, 100.0, 30.0)
+Ic = st.sidebar.number_input(r"Control Intensity Ic (mW/cm²)", value=15.0, step=1.0, format="%.1f")
+detuning_c = st.sidebar.number_input(r"Control Detuning Δc (MHz)", value=0.0, step=0.1, format="%.2f")
+scan_range = st.sidebar.number_input("Scan Range (MHz)", value=30.0, step=1.0, format="%.1f")
 
 # --- Calculation Logic ---
 def get_absorption(delta, Gamma, Ic, Is, detuning_c, gamma21, L_alpha0):
@@ -30,13 +30,16 @@ def get_absorption(delta, Gamma, Ic, Is, detuning_c, gamma21, L_alpha0):
     Omega_c = Gamma * np.sqrt(Ic / (2 * Is))
     delta_p = delta + detuning_c
     
-    # Susceptibility formula
+    # Susceptibility formula (Proportional to the imaginary part)
     numerator = 1j * (Gamma / 2.0)
     denominator = (Gamma / 2.0 - 1j * delta_p) + (Omega_c**2 / 4.0) / (gamma21 - 1j * delta)
     
     chi = numerator / denominator
-    # Normalize absorption
-    norm_abs = np.imag(chi) / np.imag((1j * (Gamma/2.0)) / (Gamma/2.0))
+    
+    # Normalize absorption so peak is 1.0 when Omega_c = 0 at resonance
+    chi_ref = (1j * (Gamma / 2.0)) / (Gamma / 2.0)
+    norm_abs = np.imag(chi) / np.imag(chi_ref)
+    
     return L_alpha0 * norm_abs
 
 # Generate Data
@@ -54,6 +57,7 @@ ax_diag.set_ylim(-0.2, 3)
 ax_diag.axis('off')
 
 # Drawing the Lambda System
+# 
 ax_diag.hlines([0.5, 0.5, 2.5], [0.5, 1.7, 1.1], [1.3, 2.5, 1.9], colors='black', lw=3)
 ax_diag.text(0.9, 0.2, r'$|1\rangle$', ha='center', fontsize=12)
 ax_diag.text(2.1, 0.2, r'$|2\rangle$', ha='center', fontsize=12)
@@ -80,17 +84,17 @@ ax_plot.legend(loc='upper right')
 # Display in Streamlit
 st.pyplot(fig)
 
-# --- Explanation Table ---
-st.subheader("Variable Definitions")
+# --- Variable Table ---
+st.subheader("Reference Table")
 st.table({
     "Variable": ["Gamma (Γ)", "Is", "Ic", "Delta_c (Δc)", "Delta_p (Δp)", "delta (δ)", "gamma21 (γ21)"],
-    "Description": [
-        "Excited state spontaneous decay rate.",
-        "Saturation intensity of the transition.",
-        "Intensity of the strong control beam.",
-        "Detuning of the control beam from the |2> to |3> transition.",
-        "Detuning of the probe beam from the |1> to |3> transition.",
+    "Definition": [
+        "Excited state decay rate (Natural linewidth).",
+        "Saturation intensity.",
+        "Control beam intensity.",
+        "Control beam detuning.",
+        "Probe beam detuning.",
         "Two-photon detuning (Δp - Δc).",
-        "Ground state decoherence rate (width of the EIT dip)."
+        "Ground state decoherence rate."
     ]
 })
