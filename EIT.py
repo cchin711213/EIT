@@ -21,16 +21,20 @@ L_alpha0 = st.sidebar.number_input("Peak Optical Depth (Lα₀)", value=10.0, st
 
 st.sidebar.header("Beam Controls")
 Ic = st.sidebar.number_input(r"Control Intensity Ic (mW/cm²)", value=15.0, step=1.0, format="%.1f")
+Ip = st.sidebar.number_input(r"Probe Intensity Ip (mW/cm²)", value=0.01, step=0.01, format="%.3f")
 detuning_c = st.sidebar.number_input(r"Control Detuning Δc (MHz)", value=0.0, step=0.1, format="%.2f")
 scan_range = st.sidebar.number_input("Scan Range (MHz)", value=30.0, step=1.0, format="%.1f")
 
 # --- Calculation Logic ---
-def get_absorption(delta, Gamma, Ic, Is, detuning_c, gamma21, L_alpha0):
-    # Rabi frequency: Omega = Gamma * sqrt(I / (2 * Is))
+def get_absorption(delta, Gamma, Ic, Ip, Is, detuning_c, gamma21, L_alpha0):
+    # Rabi frequencies: Omega = Gamma * sqrt(I / (2 * Is))
     Omega_c = Gamma * np.sqrt(Ic / (2 * Is))
+    # Note: Ip is included here for completeness, though in the weak-probe 
+    # susceptibility formula, the shape is dominated by Omega_c.
+    
     delta_p = delta + detuning_c
     
-    # Susceptibility formula (Proportional to the imaginary part)
+    # Susceptibility formula (Weak probe limit)
     numerator = 1j * (Gamma / 2.0)
     denominator = (Gamma / 2.0 - 1j * delta_p) + (Omega_c**2 / 4.0) / (gamma21 - 1j * delta)
     
@@ -44,7 +48,7 @@ def get_absorption(delta, Gamma, Ic, Is, detuning_c, gamma21, L_alpha0):
 
 # Generate Data
 delta_range = np.linspace(-scan_range/2, scan_range/2, 1000)
-absorption = get_absorption(delta_range, Gamma, Ic, Is, detuning_c, gamma21, L_alpha0)
+absorption = get_absorption(delta_range, Gamma, Ic, Ip, Is, detuning_c, gamma21, L_alpha0)
 
 # --- Plotting & Illustration ---
 fig = plt.figure(figsize=(10, 8))
@@ -57,7 +61,7 @@ ax_diag.set_ylim(-0.2, 3)
 ax_diag.axis('off')
 
 # Drawing the Lambda System
-# 
+
 ax_diag.hlines([0.5, 0.5, 2.5], [0.5, 1.7, 1.1], [1.3, 2.5, 1.9], colors='black', lw=3)
 ax_diag.text(0.9, 0.2, r'$|1\rangle$', ha='center', fontsize=12)
 ax_diag.text(2.1, 0.2, r'$|2\rangle$', ha='center', fontsize=12)
@@ -87,14 +91,14 @@ st.pyplot(fig)
 # --- Variable Table ---
 st.subheader("Reference Table")
 st.table({
-    "Variable": ["Gamma (Γ)", "Is", "Ic", "Delta_c (Δc)", "Delta_p (Δp)", "delta (δ)", "gamma21 (γ21)"],
+    "Variable": ["Gamma (Γ)", "Is", "Ic", "Ip", "Delta_c (Δc)", "delta (δ)", "gamma21 (γ21)"],
     "Definition": [
-        "Excited state decay rate (Natural linewidth).",
-        "Saturation intensity.",
+        "Excited state decay rate (MHz).",
+        "Saturation intensity (mW/cm²).",
         "Control beam intensity.",
-        "Control beam detuning.",
-        "Probe beam detuning.",
+        "Probe beam intensity.",
+        "Control beam detuning (MHz).",
         "Two-photon detuning (Δp - Δc).",
-        "Ground state decoherence rate."
+        "Ground state decoherence rate (MHz)."
     ]
 })
